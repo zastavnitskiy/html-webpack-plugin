@@ -10,35 +10,73 @@ var webpack = require('webpack');
 var rimraf = require('rimraf');
 var WebpackRecompilationSimulator = require('webpack-recompilation-simulator');
 var HtmlWebpackPlugin = require('../index.js');
-var webpackMajorVersion = require('webpack/package.json').version.split('.')[0];
 
 var OUTPUT_DIR = path.join(__dirname, '../dist');
 
 jasmine.getEnv().defaultTimeoutInterval = 30000;
+process.traceDeprecation = true;
 
 function setUpCompiler (htmlWebpackPlugin) {
   spyOn(htmlWebpackPlugin, 'evaluateCompilationResult').and.callThrough();
   var webpackConfig = {
+    stats: {all: true},
+    // Caching works only in development
+    mode: 'development',
     entry: path.join(__dirname, 'fixtures/index.js'),
+    module: {
+      rules: [
+        {
+          test: /\.html$/,
+          loader: require.resolve('../lib/loader.js'),
+          options: {
+            force: true
+          }
+        }
+      ]
+    },
     output: {
       path: OUTPUT_DIR,
       filename: 'index_bundle.js'
     },
     plugins: [htmlWebpackPlugin]
   };
-  if (Number(webpackMajorVersion) >= 4) {
-    webpackConfig.mode = 'development';
-  }
   var compiler = new WebpackRecompilationSimulator(webpack(webpackConfig));
   return compiler;
 }
 
-function getCompiledModuleCount (statsJson) {
-  return statsJson.modules.filter(function (webpackModule) {
+function getCompiledModules (statsJson) {
+  const builtModules = statsJson.modules.filter(function (webpackModule) {
     return webpackModule.built;
-  }).length + statsJson.children.reduce(function (sum, childCompilationStats) {
-    return sum + getCompiledModuleCount(childCompilationStats);
-  }, 0);
+  }).map((webpackModule) => {
+    return module.userRequest;
+  });
+  statsJson.children.forEach((childCompilationStats) => {
+    const builtChildModules = getCompiledModules(childCompilationStats);
+    Array.prototype.push.apply(builtModules, builtChildModules);
+  });
+  return builtModules;
+}
+
+function getCompiledModuleCount (statsJson) {
+  return getCompiledModules(statsJson).length;
+}
+
+function expectNoErrors (stats) {
+  const errors = {
+    main: stats.compilation.errors,
+    childCompilation: []
+  };
+  stats.compilation.children.forEach((child) => {
+    Array.prototype.push.apply(errors.childCompilation, child.errors);
+  });
+  if (errors.main.length) {
+    errors.main.forEach((error) => {
+      console.log('Error => ', error);
+    });
+    console.dir(stats.toJson({errorDetails: true, moduleTrace: true}), { depth: 5 });
+  }
+  expect(errors.main).toEqual([]);
+  expect(errors.childCompilation).toEqual([]);
 }
 
 describe('HtmlWebpackPluginCaching', function () {
@@ -53,6 +91,7 @@ describe('HtmlWebpackPluginCaching', function () {
     });
     var childCompilerHash;
     var compiler = setUpCompiler(htmlWebpackPlugin);
+    compiler.addTestFile(path.join(__dirname, 'fixtures/index.js'));
     compiler.run()
       // Change the template file and compile again
       .then(function () {
@@ -60,9 +99,11 @@ describe('HtmlWebpackPluginCaching', function () {
         return compiler.run();
       })
       .then(function (stats) {
+        // Expect no errors:
+        expectNoErrors(stats);
         // Verify that no file was built
-        expect(getCompiledModuleCount(stats.toJson()))
-          .toBe(0);
+        expect(getCompiledModules(stats.toJson()))
+          .toEqual([]);
         // Verify that the html was processed only during the inital build
         expect(htmlWebpackPlugin.evaluateCompilationResult.calls.count())
           .toBe(1);
@@ -77,6 +118,7 @@ describe('HtmlWebpackPluginCaching', function () {
     var htmlWebpackPlugin = new HtmlWebpackPlugin();
     var compiler = setUpCompiler(htmlWebpackPlugin);
     var childCompilerHash;
+    compiler.addTestFile(path.join(__dirname, 'fixtures/index.js'));
     compiler.run()
       // Change a js file and compile again
       .then(function () {
@@ -85,6 +127,8 @@ describe('HtmlWebpackPluginCaching', function () {
         return compiler.run();
       })
       .then(function (stats) {
+        // Expect no errors:
+        expectNoErrors(stats);
         // Verify that only one file was built
         expect(getCompiledModuleCount(stats.toJson()))
           .toBe(1);
@@ -104,6 +148,7 @@ describe('HtmlWebpackPluginCaching', function () {
     });
     var childCompilerHash;
     var compiler = setUpCompiler(htmlWebpackPlugin);
+    compiler.addTestFile(path.join(__dirname, 'fixtures/index.js'));
     compiler.run()
       // Change a js file and compile again
       .then(function () {
@@ -112,6 +157,8 @@ describe('HtmlWebpackPluginCaching', function () {
         return compiler.run();
       })
       .then(function (stats) {
+        // Expect no errors:
+        expectNoErrors(stats);
         // Verify that only one file was built
         expect(getCompiledModuleCount(stats.toJson()))
           .toBe(1);
@@ -132,6 +179,7 @@ describe('HtmlWebpackPluginCaching', function () {
     });
     var childCompilerHash;
     var compiler = setUpCompiler(htmlWebpackPlugin);
+    compiler.addTestFile(template);
     compiler.run()
       // Change the template file and compile again
       .then(function () {
@@ -140,6 +188,8 @@ describe('HtmlWebpackPluginCaching', function () {
         return compiler.run();
       })
       .then(function (stats) {
+        // Expect no errors:
+        expectNoErrors(stats);
         // Verify that only one file was built
         expect(getCompiledModuleCount(stats.toJson()))
           .toBe(1);
