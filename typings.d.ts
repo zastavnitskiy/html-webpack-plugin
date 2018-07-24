@@ -99,6 +99,10 @@ interface HtmlTagObject {
     [attributeName: string]: string|boolean
   },
   /**
+   * The webpack entry name for this tag (if known)
+   */
+  entryName?: string;
+  /**
    * Wether this html must not contain innerHTML
    * @see https://www.w3.org/TR/html5/syntax.html#void-elements
    */

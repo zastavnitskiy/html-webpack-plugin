@@ -15,8 +15,6 @@ const fs = require('fs');
 const _ = require('lodash');
 const path = require('path');
 
-const htmlTagObjectToString = require('./lib/html-tags').htmlTagObjectToString;
-
 const childCompiler = require('./lib/compiler.js');
 const prettyError = require('./lib/errors.js');
 const chunkSorter = require('./lib/chunksorter.js');
@@ -185,7 +183,7 @@ class HtmlWebpackPlugin {
           // Wait for the compilation to finish
           .then(() => compilationPromise)
           .then(compiledTemplate => {
-          // Allow to use a custom function / string instead
+            // Allow to use a custom function / string instead
             if (self.options.templateContent !== false) {
               return self.options.templateContent;
             }
@@ -193,6 +191,7 @@ class HtmlWebpackPlugin {
             // and replace it with its content
             return self.evaluateCompilationResult(compilation, compiledTemplate);
           })
+
           // Allow plugins to make changes to the assets before invoking the template
           // This only makes sense to use if `inject` is `false`
           .then(compilationResult => getHtmlWebpackPluginHooks(compilation).beforeHtmlGeneration.promise({
