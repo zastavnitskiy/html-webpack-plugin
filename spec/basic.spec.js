@@ -287,6 +287,25 @@ describe('HtmlWebpackPlugin', () => {
     }, ['<script src="app_bundle.js"'], null, done);
   });
 
+  it('allows you to inject a specified asset into a given html file using a custom function', done => {
+    testHtmlPlugin({
+      mode: 'production',
+      entry: {
+        util: path.join(__dirname, 'fixtures/util.js'),
+        app: path.join(__dirname, 'fixtures/index.js')
+      },
+      output: {
+        path: OUTPUT_DIR,
+        filename: '[name]_bundle.js'
+      },
+      plugins: [new HtmlWebpackPlugin({
+        inject: true,
+        chunks: chunkName => chunkName === 'app',
+        template: path.join(__dirname, 'fixtures/plain.html')
+      })]
+    }, ['<script src="app_bundle.js"'], null, done);
+  });
+
   it('allows you to inject a specified asset into a given html file', done => {
     testHtmlPlugin({
       mode: 'production',

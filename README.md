@@ -296,13 +296,25 @@ The following variables are available in the template:
 
 ### Filtering Chunks
 
-To include only certain chunks you can limit the chunks being used
+To include only certain chunks you can limit the chunks being used by providing an array of chunk names:
 
 **webpack.config.js**
 ```js
 plugins: [
   new HtmlWebpackPlugin({
     chunks: ['app']
+  })
+]
+```
+
+Or by providing a filter function:
+
+**webpack.config.js**
+```js
+
+plugins: [
+  new HtmlWebpackPlugin({
+    chunks: chunkName => chunkName === 'app'
   })
 ]
 ```

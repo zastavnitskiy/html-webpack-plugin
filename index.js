@@ -491,22 +491,31 @@ class HtmlWebpackPlugin {
   /**
    * Return all chunks from the compilation result which match the exclude and include filters
    * @param {any} chunks
-   * @param {string[]|'all'} includedChunks
+   * @param {string[]|function|'all'} includedChunks
    * @param {string[]} excludedChunks
    */
   filterChunks (chunks, includedChunks, excludedChunks) {
-    return chunks.filter(chunkName => {
-      // Skip if the chunks should be filtered and the given chunk was not added explicity
-      if (Array.isArray(includedChunks) && includedChunks.indexOf(chunkName) === -1) {
-        return false;
-      }
-      // Skip if the chunks should be filtered and the given chunk was excluded explicity
-      if (Array.isArray(excludedChunks) && excludedChunks.indexOf(chunkName) !== -1) {
-        return false;
-      }
-      // Add otherwise
-      return true;
-    });
+    let includedFilter;
+    let excludedFilter;
+
+    if (typeof includedChunks === 'function') {
+      includedFilter = includedChunks;
+    } else if (Array.isArray(includedChunks)) {
+      includedFilter = (chunkName) => includedChunks.includes(chunkName);
+    } else {
+      // if chunks filtering is not specified, we include all by default.
+      includedFilter = () => true;
+    }
+
+    if (Array.isArray(excludedChunks)) {
+      excludedFilter = (chunkName) => !excludedChunks.includes(chunkName);
+    } else {
+      excludedFilter = () => true;
+    }
+
+    return chunks
+      .filter(includedFilter)
+      .filter(excludedFilter);
   }
 
   /**
